@@ -1,3 +1,3 @@
-# Realtim Chat with Socket.io
+# Realtime mini game with Socket.io
 
-A Node.js realtime chat starter project
+A Node.js realtime mini game project

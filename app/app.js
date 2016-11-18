@@ -9,6 +9,8 @@ let session = require('express-session')
 let path = require('path')
 
 let browserify = require('browserify-middleware')
+let passportMiddleware = require('./middlewares/passport')
+let mongoose = require('mongoose')
 
 require('../bootstrap')
 
@@ -18,14 +20,20 @@ const NODE_ENV = process.env.NODE_ENV || 'development'
 let Server = require('http').Server
 let io = require('socket.io')
 
-
-
 class App {
 
     constructor(config, rootDir) {
         let app = this.app = express()
+
+        app.config = {
+            database: config.database[NODE_ENV]
+        }
+
+        passportMiddleware.configure(config)
+        app.passport = passportMiddleware.passport
+
         // connect to the database
-        // mongoose.connect(app.config.database.url)
+        mongoose.connect(app.config.database.url)
 
         // set up our express middleware
         app.use(morgan('dev')) // log every request to the console
@@ -34,27 +42,26 @@ class App {
         app.use(bodyParser.urlencoded({ extended: true }))
 
 
-        let viewDir = path.join(rootDir, 'views');
-        app.set('views', viewDir)
-        app.set('view engine', 'ejs') // set up ejs for templating
-
-        app.config = {
-            database: config.database[NODE_ENV]
-        }
-
         // required for passport
         app.use(session({
             secret: 'ilovethenodejs',
-            // store: new MongoStore({db: 'social-feeder'}),
             resave: true,
             saveUninitialized: true
         }))
+
+
+        app.use(app.passport.initialize())
+        app.use(app.passport.session())
 
         // configure routes
         routes(app)
 
 
-        //app.use(express.static('public'))
+        let viewDir = path.join(rootDir, 'views');
+        app.set('views', viewDir)
+        app.set('view engine', 'ejs') // set up ejs for templating
+
+
         browserify.settings({transform: ['babelify']})
         app.use('/js/index.js', browserify( path.join(rootDir, 'public/js/index.js')))
 
